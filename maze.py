@@ -2,7 +2,7 @@ import pyglet
 import random
 
 class Cell:
-    def __init__(self, x, y):
+    def __init__(self, x, y, exit=None):
         self.x = x
         self.y = y
         self.visited = False
@@ -12,6 +12,10 @@ class Cell:
         self.walls['S'] = True
         self.walls['W'] = True
 
+        if exit is not None:
+            print(self.x, self.y)
+            self.walls[exit] = False
+
 class Maze:
     def __init__(self, width, height, cell_size):
         self.cell_size = cell_size
@@ -20,11 +24,26 @@ class Maze:
         self.margin_left = (width - self.width*cell_size)//2
         self.margin_top = (height - self.height*cell_size)//2
         self.cells = []
+
+        # generate random exit
+        if random.random() > 0.5:  # left side
+            exit1_i = 0
+            exit1_j = random.randint(0, self.height - 1)
+            exit1 = 'E'
+        else:  # bottom
+            exit1_i = self.width - 1
+            exit1_j = 0
+            exit1 = 'S'
+
+        exit_coord = exit1_i + exit1_j*self.width
         for j in range(self.height):
             for i in range(self.width):
-                self.cells.append(Cell(i, j))
-                self.cells[0].visited = True
-        self.stack = [0]
+                if i == exit1_i and j == exit1_j:
+                    self.cells.append(Cell(i, j, exit1))
+                else:
+                    self.cells.append(Cell(i, j))
+        self.cells[exit_coord].visited = True
+        self.stack = [exit_coord]
         self.done = False
 
     def update(self):
@@ -86,6 +105,7 @@ class Maze:
                     self.cells[self.stack[-2]].walls['S'] = False
 
     def draw(self):
+        batch = pyglet.graphics.Batch()
         for ix, cell in enumerate(self.cells):
             vertices = 0
             if cell.walls['N']:
@@ -128,14 +148,15 @@ class Maze:
             color_current = (100, 200, 100) * 4
 
             if ix == self.stack[-1]:
-                pyglet.graphics.draw(4, pyglet.gl.GL_QUADS,
-                                     ('v2i', coordsRect),
-                                     ('c3B', color_current))
+                batch.add(4, pyglet.gl.GL_QUADS, None,
+                          ('v2i', coordsRect),
+                          ('c3B', color_current))
             elif cell.visited:
-                pyglet.graphics.draw(4, pyglet.gl.GL_QUADS,
-                                     ('v2i', coordsRect),
-                                     ('c3B', color_visit))
-            pyglet.graphics.draw(vertices, pyglet.gl.GL_LINES,
-                                 ('v2i', coordsN + coordsE + coordsS + coordsW),
-                                 ('c3B', color))
+                batch.add(4, pyglet.gl.GL_QUADS, None,
+                          ('v2i', coordsRect),
+                          ('c3B', color_visit))
+            batch.add(vertices, pyglet.gl.GL_LINES, None,
+                      ('v2i', coordsN + coordsE + coordsS + coordsW),
+                      ('c3B', color))
+        batch.draw()
 
